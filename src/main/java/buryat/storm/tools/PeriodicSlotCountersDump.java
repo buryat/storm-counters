@@ -1,72 +1,49 @@
 package buryat.storm.tools;
 
+import backtype.storm.task.OutputCollector;
+import backtype.storm.tuple.Values;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Transaction;
 
 import java.util.*;
 
-@SuppressWarnings("unchecked")
-public final class PeriodicSlotCountersDump extends TimerTask {
-    private SlotCounters counters;
+public final class PeriodicSlotCountersDump<A, B> extends TimerTask {
+    private SlotCounters<A, B> counters;
     private JedisPool jedisPool;
     private int redis_db;
     private String prefix = "";
-    private boolean dictionary = false;
 
-    public PeriodicSlotCountersDump(SlotCounters counters, JedisPool jedisPool, int redis_db) {
+    public PeriodicSlotCountersDump(SlotCounters<A, B> counters, JedisPool jedisPool, int redis_db) {
         this.counters = counters;
         this.jedisPool = jedisPool;
         this.redis_db = redis_db;
     }
-    public PeriodicSlotCountersDump(SlotCounters counters, JedisPool jedisPool, int redis_db, String prefix) {
+    public PeriodicSlotCountersDump(SlotCounters<A, B> counters, JedisPool jedisPool, int redis_db, String prefix) {
         this.counters = counters;
         this.jedisPool = jedisPool;
         this.redis_db = redis_db;
         this.prefix = prefix;
-    }
-    public PeriodicSlotCountersDump(SlotCounters counters, JedisPool jedisPool, int redis_db, String prefix, boolean dictionary) {
-        this.counters = counters;
-        this.jedisPool = jedisPool;
-        this.redis_db = redis_db;
-        this.prefix = prefix;
-        this.dictionary = dictionary;
     }
 
     public void run() {
-        dumper();
+        dump();
     }
 
-    private void dumper() {
-        Map<String, Map<Integer, Long>> keys = counters.getSlots();
+    private void dump() {
+        Map<A, Map<B, Long>> slots = counters.getSlots();
 
         Jedis redis = jedisPool.getResource();
         Transaction multi = redis.multi();
         multi.select(redis_db);
 
-        for (String key : keys.keySet()) {
-            Map<Integer, Long> slots = keys.get(key);
+        for (A slot : slots.keySet()) {
+            Map<B, Long> keys = slots.remove(slot);
 
-            for (Integer slot : slots.keySet()) {
-                multi.hincrBy(prefix + key, slot.toString(), slots.get(slot));
-            }
+            for (B key : keys.keySet()) {
+                Long v = keys.remove(key);
 
-            if (dictionary) {
-                String[] parts = key.split("\\.");
-
-                String el = parts[parts.length - 1];
-                String k;
-
-                if (parts.length == 1) {
-                    k = "dic";
-                } else {
-                    k = "dic:" + parts[0];
-                    for (int i = 1; i < parts.length - 1; i++) {
-                        k += "." + parts[i];
-                    }
-                }
-
-                multi.sadd(k, el);
+                multi.hincrBy(prefix + key.toString(), slot.toString(), v);
             }
         }
 

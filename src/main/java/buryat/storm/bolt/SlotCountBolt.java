@@ -22,12 +22,12 @@ public class SlotCountBolt extends BaseRichBolt {
 
     private static final Logger LOG = Logger.getLogger(CountBolt.class);
 
-    private final SlotCounters<String, Integer> counters;
+    private final SlotCounters<Integer, String> counters;
     private final Properties props;
 
     public SlotCountBolt(Properties props) {
         this.props = props;
-        counters = new SlotCounters<String, Integer>();
+        counters = new SlotCounters<Integer, String>();
     }
 
     @Override
@@ -40,7 +40,7 @@ public class SlotCountBolt extends BaseRichBolt {
                 Integer.valueOf(props.getProperty("redis_dump.port"))
         );
 
-        TimerTask dump = new PeriodicSlotCountersDump(
+        TimerTask dump = new PeriodicSlotCountersDump<Integer, String>(
                 counters,
                 jedisPool,
                 Integer.valueOf(props.getProperty("redis_dump.db"))
@@ -59,7 +59,7 @@ public class SlotCountBolt extends BaseRichBolt {
 
         minute = ((int) minute / 60) * 60;
 
-        counters.incr(key, minute);
+        counters.incr(minute, key);
         _collector.ack(tuple);
     }
 

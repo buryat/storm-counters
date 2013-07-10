@@ -4,6 +4,7 @@ import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
+import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import buryat.storm.tools.PeriodicSlotCountersDump;
 import buryat.storm.tools.SlotCounters;
@@ -20,7 +21,7 @@ public class MultiSlotCountBolt extends BaseRichBolt {
 
     private final int dumpers;
     private final int[] countIntervals;
-    private final SlotCounters<String, Integer>[] slotCounters;
+    private final SlotCounters<Integer, String>[] slotCounters;
     private final Properties props;
 
     @SuppressWarnings("unchecked")
@@ -30,9 +31,9 @@ public class MultiSlotCountBolt extends BaseRichBolt {
         dumpers = Integer.valueOf(props.getProperty("dumpers"));
 
         countIntervals = new int[dumpers];
-        slotCounters = (SlotCounters<String, Integer>[]) new SlotCounters[dumpers];
+        slotCounters = (SlotCounters<Integer, String>[]) new SlotCounters[dumpers];
         for (int i = 0; i < dumpers; i++) {
-            slotCounters[i] = new SlotCounters<String, Integer>();
+            slotCounters[i] = new SlotCounters<Integer, String>();
         }
     }
 
@@ -59,12 +60,11 @@ public class MultiSlotCountBolt extends BaseRichBolt {
 
             countIntervals[i] = count_interval;
 
-            TimerTask dump = new PeriodicSlotCountersDump(
+            TimerTask dump = new PeriodicSlotCountersDump<Integer, String>(
                     slotCounters[i],
                     jedisPool,
                     redis_db,
-                    key_prefix,
-                    i == 0
+                    key_prefix
             );
 
             Timer timer = new Timer();
@@ -80,16 +80,14 @@ public class MultiSlotCountBolt extends BaseRichBolt {
         for (int i = 0; i < dumpers; i++) {
             int time = ((int) timestamp / countIntervals[i]) * countIntervals[i];
 
-            System.out.println(key);
-            System.out.println(time);
-
-            slotCounters[i].incr(key, time);
+            slotCounters[i].incr(time, key);
         }
 
         _collector.ack(tuple);
     }
 
     @Override
-    public void declareOutputFields(OutputFieldsDeclarer ofd) {
+    public void declareOutputFields(OutputFieldsDeclarer declarer) {
+        declarer.declare(new Fields("key", "count"));
     }
 }

@@ -64,9 +64,11 @@ public class AWSRedisQueuesSpout extends BaseRichSpout {
     public void nextTuple() {
         JedisPool jedisPool = redises.get();
 
-        Jedis redis = jedisPool.getResource();
+        Jedis redis = null;
 
         try {
+            redis = jedisPool.getResource();
+
             redis.getClient().setTimeoutInfinite();
 
             redis.select(redis_db);
