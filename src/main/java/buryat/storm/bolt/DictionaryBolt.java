@@ -39,7 +39,7 @@ public class DictionaryBolt extends BaseRichBolt {
 
         String redis_host = props.getProperty("redis_dump.host");
         int redis_port = Integer.valueOf(props.getProperty("redis_dump.port"));
-        int redis_db = Integer.valueOf(props.getProperty("redis_dump.db"));
+        int redis_db = Integer.valueOf(props.getProperty("dictionary.db"));
 
         JedisPool jedisPool = new JedisPool(
                 new JedisPoolConfig(),

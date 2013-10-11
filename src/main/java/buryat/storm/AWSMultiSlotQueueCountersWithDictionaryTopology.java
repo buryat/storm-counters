@@ -25,7 +25,7 @@ public final class AWSMultiSlotQueueCountersWithDictionaryTopology {
 
         builder.setSpout("queues", new AWSRedisQueuesSpout(properties), 4);
         builder.setBolt("count", new MultiSlotCountBolt(properties), 4).shuffleGrouping("queues");
-        builder.setBolt("dictionary", new DictionaryBolt(properties), 1).shuffleGrouping("queues");
+        builder.setBolt("dictionary", new DictionaryBolt(properties), 2).shuffleGrouping("queues");
 
         Config conf = new Config();
 
